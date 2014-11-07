@@ -735,6 +735,9 @@ class BoardConfig(object):
 	if (self.board == 'odroidx'):
             self.populate_raw_partition(boot_device_or_file, chroot_dir)
 
+	if (self.board == 'odroidxu3'):
+            self.populate_raw_partition(boot_device_or_file, chroot_dir)
+
         if self.env_dd:
             # Do we need to zero out the env before flashing it?
             _dd("/dev/zero", boot_device_or_file,
@@ -1650,6 +1653,44 @@ class OdroidXConfig(SamsungConfig):
                     "File '%s' does not exists. Cannot proceed." % name)
             _dd(file_path, boot_device_or_file, seek=boot_bin['seek'])
 
+class OdroidXU3Config(SamsungConfig):
+    def __init__(self):
+        super(OdroidXConfig, self).__init__()
+        self.boot_script = 'boot.scr'
+        self.bootloader_flavor = 'odroidxu3'
+        self.initrd_addr = '0x42000000'
+        self.kernel_addr = '0x40007000'
+        self.kernel_flavors = ['odroidxu3']
+        self.load_addr = '0x40008000'
+        self.mmc_option = '0:2'
+        self.mmc_part_offset = 1
+        self.samsung_bl1_len = 48
+        self.samsung_bl2_start = 49
+        self.samsung_env_start = 1073
+        self.serial_tty = 'ttySAC1'
+        self._extra_serial_options = 'console=%s,115200n8'
+
+    def populate_raw_partition(self, boot_device_or_file, chroot_dir):
+        boot_bin_0 = {'name': 'bl1.bin.hardkernel', 'seek': 1}
+        boot_bin_1 = {'name': 'bl2.bin.hardkernel', 'seek': 31}
+        boot_bin_2 = {'name': 'u-boot.bin', 'seek': 63}
+        boot_bin_3 = {'name': 'tzsw.bin.hardkernel', 'seek': 719}
+        boot_bins = [boot_bin_0, boot_bin_1, boot_bin_2, boot_bin_3]
+
+        boot_partition = 'boot'
+
+        # Zero the env so that the boot_script will get loaded
+        _dd("/dev/zero", boot_device_or_file, count=self.samsung_env_len,
+            seek=self.samsung_env_start)
+
+        for boot_bin in boot_bins:
+            name = boot_bin['name']
+            file_path = os.path.join(chroot_dir, boot_partition, name)
+            if not os.path.exists(file_path):
+                raise BoardException(
+                    "File '%s' does not exists. Cannot proceed." % name)
+            _dd(file_path, boot_device_or_file, seek=boot_bin['seek'])
+
 class ArndaleConfig(SamsungConfig):
     def __init__(self):
         super(ArndaleConfig, self).__init__()
@@ -1824,6 +1865,7 @@ board_configs = {
     'mx53loco': Mx53LoCoConfig,
     'mx6qsabrelite': BoardConfig,
     'odroidx': OdroidXConfig,
+    'odroidxu3': OdroidXU3Config,
     'origen': OrigenConfig,
     'origen_quad': OrigenQuadConfig,
     'overo': OveroConfig,
